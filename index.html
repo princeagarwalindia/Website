@@ -39,16 +39,12 @@
       bottom: 0;
       right: 0;
     }
-    canvas {
-      margin-top: 20px;
-    }
     #message {
       margin-top: 10px;
       font-size: 18px;
       color: darkred;
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body>
   <h1>Dino Game</h1>
@@ -56,14 +52,12 @@
     <div id="player"></div>
     <div id="obstacle"></div>
   </div>
-  <canvas id="qr"></canvas>
-  <div id="message">Scan this QR on your phone to play!</div>
+  <div id="message">Press space to jump!</div>
 
   <script>
     const player = document.getElementById("player");
     const obstacle = document.getElementById("obstacle");
     const message = document.getElementById("message");
-    const qrCanvas = document.getElementById("qr");
 
     let isJumping = false;
     let gameOver = false;
@@ -73,25 +67,6 @@
     const groundLevel = 0; // Define the ground level
     let gameStarted = false;
     let gameLoop = null;
-
-    // QR Code
-    const controllerURL = "https://princeagarwalindia.github.io/Website/controller.html";
-    QRCode.toCanvas(qrCanvas, controllerURL, (error) => {
-      if (error) console.error(error);
-    });
-
-    // Controller input
-    const channel = new BroadcastChannel("dino-channel");
-    channel.onmessage = (e) => {
-      if (e.data === "jump") {
-        if (gameOver) {
-          resetGame();
-        } else {
-          if (!gameStarted) startGame();
-          jump();
-        }
-      }
-    };
 
     // Spacebar
     document.addEventListener("keydown", (e) => {
@@ -121,7 +96,7 @@
       gameStarted = false;
       player.style.bottom = "0px";
       obstacle.style.right = "0px";
-      message.textContent = "Scan this QR on your phone to play!";
+      message.textContent = "Press space to jump!";
     }
 
     function startGame() {
@@ -162,7 +137,7 @@
         ) {
           clearInterval(gameLoop);
           gameOver = true;
-          message.textContent = "Game Over! Tap or press space to restart.";
+          message.textContent = "Game Over! Press space to restart.";
         }
 
         // Reset obstacle if it moves off screen
