@@ -1,154 +1,198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dino Game</title>
+  <meta charset="UTF-8">
+  <title>Dino Game – Phone Controlled</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      margin: 0;
+      background: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
       font-family: sans-serif;
+    }
+
+    #game {
+      position: relative;
+      width: 800px;
+      height: 200px;
+      background: white;
+      border: 2px solid #444;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    #qr-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      height: 100vh;
-      background: #f0f0f0;
     }
-    #game {
-      width: 600px;
-      height: 200px;
-      border: 2px solid black;
-      background: white;
-      position: relative;
-      overflow: hidden;
+
+    #qr {
+      margin-bottom: 10px;
     }
-    #player {
+
+    #dino {
+      position: absolute;
+      bottom: 0;
+      left: 50px;
       width: 40px;
       height: 40px;
-      background: black;
-      position: absolute;
-      left: 50px;
-      bottom: 0;
+      background: #222;
+      border-radius: 4px;
     }
+
     #obstacle {
-      width: 20px;
-      height: 40px;
-      background: red;
       position: absolute;
       bottom: 0;
-      right: 0;
+      left: 800px;
+      width: 30px;
+      height: 40px;
+      background: crimson;
+      border-radius: 2px;
     }
-    #message {
-      margin-top: 10px;
-      font-size: 18px;
-      color: darkred;
+
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 800px;
+      height: 200px;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
-  <h1>Dino Game</h1>
+  <div id="qr-container">
+    <canvas id="qr"></canvas>
+    <p>Scan this QR code on your phone to control the game!</p>
+  </div>
+
   <div id="game">
-    <div id="player"></div>
+    <div id="overlay">Press Space or Use Phone to Start</div>
+    <div id="dino"></div>
     <div id="obstacle"></div>
   </div>
-  <div id="message">Press space to jump!</div>
 
   <script>
-    const player = document.getElementById("player");
+    const dino = document.getElementById("dino");
     const obstacle = document.getElementById("obstacle");
-    const message = document.getElementById("message");
+    const overlay = document.getElementById("overlay");
 
-    let isJumping = false;
-    let gameOver = false;
     let velocity = 0;
-    const gravity = 0.6;
-    const jumpStrength = -12;
-    const groundLevel = 0; // Define the ground level
-    let gameStarted = false;
-    let gameLoop = null;
+    let gravity = -0.5;
+    let position = 0;
+    let obstacleLeft = 800;
+    let gameState = 'waiting'; // 'playing' or 'waiting'
+    let isJumping = false;
 
-    // Spacebar
-    document.addEventListener("keydown", (e) => {
-      if (e.code === "Space") {
-        if (gameOver) {
-          resetGame();
+    // BroadcastChannel for communication
+    const channel = new BroadcastChannel("dino-game");
+
+    // Listen for messages from the phone
+    channel.onmessage = (e) => {
+      if (e.data === "jump") {
+        if (gameState === 'waiting') {
+          startGame();
         } else {
-          if (!gameStarted) startGame();
+          jump();
+        }
+      }
+    };
+
+    function resetGame() {
+      position = 0;
+      velocity = 0;
+      isJumping = false;
+      dino.style.bottom = "0px";
+      obstacleLeft = 800;
+      obstacle.style.left = obstacleLeft + "px";
+      gameState = 'waiting';
+      overlay.style.display = "flex";
+    }
+
+    function startGame() {
+      gameState = 'playing';
+      overlay.style.display = "none";
+      requestAnimationFrame(moveObstacle);
+    }
+
+    function jump() {
+      if (isJumping || gameState !== 'playing') return;
+      isJumping = true;
+      velocity = 10;
+
+      const jumpInterval = setInterval(() => {
+        velocity += gravity;
+        position += velocity;
+
+        if (position <= 0) {
+          position = 0;
+          clearInterval(jumpInterval);
+          isJumping = false;
+        }
+
+        dino.style.bottom = position + "px";
+      }, 20);
+    }
+
+    function moveObstacle() {
+      if (gameState !== 'playing') return;
+
+      obstacleLeft -= 5;
+      obstacle.style.left = obstacleLeft + "px";
+
+      if (obstacleLeft < -30) {
+        obstacleLeft = 800;
+      }
+
+      const dinoRect = dino.getBoundingClientRect();
+      const obstacleRect = obstacle.getBoundingClientRect();
+
+      const isColliding =
+        dinoRect.right > obstacleRect.left + 5 &&
+        dinoRect.left < obstacleRect.right - 5 &&
+        dinoRect.bottom > obstacleRect.top;
+
+      if (isColliding) {
+        resetGame(); // Don't reload — reset and wait
+        return;
+      }
+
+      requestAnimationFrame(moveObstacle);
+    }
+
+    document.addEventListener("keydown", e => {
+      if (e.code === "Space" || e.code === "ArrowUp") {
+        if (gameState === 'waiting') {
+          startGame();
+        } else {
           jump();
         }
       }
     });
 
-    function jump() {
-      const currentBottom = parseFloat(player.style.bottom) || 0;
-      if (!isJumping && currentBottom === groundLevel) {
-        velocity = jumpStrength; // Apply jump strength
-        isJumping = true; // Mark as jumping
-      }
-    }
+    // Generate QR code for the phone controller
+    const qrCanvas = document.getElementById("qr");
+    const controllerURL = "https://princeagarwalindia.github.io/Website/controller.html"; // GitHub Pages URL for the controller
+    QRCode.toCanvas(qrCanvas, controllerURL, (error) => {
+      if (error) console.error(error);
+    });
 
-    function resetGame() {
-      if (gameLoop) clearInterval(gameLoop);
-      gameOver = false;
-      isJumping = false;
-      velocity = 0;
-      gameStarted = false;
-      player.style.bottom = "0px";
-      obstacle.style.right = "0px";
-      message.textContent = "Press space to jump!";
-    }
-
-    function startGame() {
-      if (gameStarted) return;
-      gameStarted = true;
-      let obstaclePos = 0;
-
-      gameLoop = setInterval(() => {
-        // Apply gravity to velocity
-        velocity += gravity;
-
-        // Update the player's position
-        let currentBottom = parseFloat(player.style.bottom) || 0;
-        currentBottom += velocity;
-
-        // Prevent the player from going below the ground
-        if (currentBottom <= groundLevel) {
-          currentBottom = groundLevel;
-          velocity = 0; // Stop vertical movement
-          isJumping = false; // Allow jumping again
-        }
-
-        // Update the player's position
-        player.style.bottom = currentBottom + "px";
-
-        // Move the obstacle
-        obstaclePos += 6;
-        obstacle.style.right = obstaclePos + "px";
-
-        // Check for collision
-        const playerRect = player.getBoundingClientRect();
-        const obstacleRect = obstacle.getBoundingClientRect();
-
-        if (
-          playerRect.left < obstacleRect.right &&
-          playerRect.right > obstacleRect.left &&
-          playerRect.bottom > obstacleRect.top
-        ) {
-          clearInterval(gameLoop);
-          gameOver = true;
-          message.textContent = "Game Over! Press space to restart.";
-        }
-
-        // Reset obstacle if it moves off screen
-        if (obstaclePos > 600) {
-          obstaclePos = 0;
-          obstacle.style.right = "0px";
-        }
-      }, 20);
-    }
-
-    resetGame(); // Initial reset
+    // Initial state
+    resetGame();
   </script>
 </body>
 </html>
