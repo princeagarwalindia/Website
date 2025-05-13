@@ -28,8 +28,8 @@
       height: 40px;
       background: black;
       position: absolute;
-      bottom: 0;
       left: 50px;
+      bottom: 0;
     }
     #obstacle {
       width: 20px;
@@ -53,7 +53,7 @@
 <body>
   <h1>Dino Game</h1>
   <div id="game">
-    <div id="player" style="bottom: 0px;"></div>
+    <div id="player"></div>
     <div id="obstacle"></div>
   </div>
   <canvas id="qr"></canvas>
@@ -73,11 +73,13 @@
     let gameStarted = false;
     let gameLoop = null;
 
+    // QR Code
     const controllerURL = "https://princeagarwalindia.github.io/Website/controller.html";
-    QRCode.toCanvas(qrCanvas, controllerURL, function (error) {
+    QRCode.toCanvas(qrCanvas, controllerURL, (error) => {
       if (error) console.error(error);
     });
 
+    // Controller input
     const channel = new BroadcastChannel("dino-channel");
     channel.onmessage = (e) => {
       if (e.data === "jump") {
@@ -90,6 +92,7 @@
       }
     };
 
+    // Spacebar
     document.addEventListener("keydown", (e) => {
       if (e.code === "Space") {
         if (gameOver) {
@@ -102,24 +105,21 @@
     });
 
     function jump() {
-      const bottom = parseFloat(player.style.bottom) || 0;
-      if (!isJumping && !gameOver && bottom === 0) {
+      let currentBottom = parseFloat(player.style.bottom) || 0;
+      if (!isJumping && currentBottom <= 0.1) {
         velocity = jumpStrength;
         isJumping = true;
       }
     }
 
     function resetGame() {
+      if (gameLoop) clearInterval(gameLoop);
       gameOver = false;
       isJumping = false;
       velocity = 0;
       gameStarted = false;
       player.style.bottom = "0px";
       obstacle.style.right = "0px";
-      if (gameLoop) {
-        clearInterval(gameLoop);
-        gameLoop = null;
-      }
       message.textContent = "Scan this QR on your phone to play!";
     }
 
@@ -153,9 +153,8 @@
           playerRect.bottom > obstacleRect.top
         ) {
           clearInterval(gameLoop);
-          gameLoop = null;
           gameOver = true;
-          message.textContent = "Game Over! Press Space or Tap to restart.";
+          message.textContent = "Game Over! Tap or press space to restart.";
         }
 
         if (obstaclePos > 600) {
@@ -165,7 +164,7 @@
       }, 20);
     }
 
-    resetGame();
+    resetGame(); // Initial reset
   </script>
 </body>
 </html>
