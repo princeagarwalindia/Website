@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dino Game</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #f0f0f0;
+    }
+    #game {
+      width: 600px;
+      height: 200px;
+      border: 2px solid black;
+      background: white;
+      position: relative;
+      overflow: hidden;
+    }
+    #player {
+      width: 40px;
+      height: 40px;
+      background: black;
+      position: absolute;
+      bottom: 0;
+      left: 50px;
+    }
+    #obstacle {
+      width: 20px;
+      height: 40px;
+      background: red;
+      position: absolute;
+      bottom: 0;
+      right: 0;
+    }
+    canvas {
+      margin-top: 20px;
+    }
+    #message {
+      margin-top: 10px;
+      font-size: 18px;
+      color: darkred;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+</head>
+<body>
+  <h1>Dino Game</h1>
+  <div id="game">
+    <div id="player" style="bottom: 0px;"></div>
+    <div id="obstacle"></div>
+  </div>
+  <canvas id="qr"></canvas>
+  <div id="message">Scan this QR on your phone to play!</div>
+
+  <script>
+    const player = document.getElementById("player");
+    const obstacle = document.getElementById("obstacle");
+    const message = document.getElementById("message");
+    const qrCanvas = document.getElementById("qr");
+
+    let isJumping = false;
+    let gameOver = false;
+    let velocity = 0;
+    const gravity = 0.6;
+    const jumpStrength = -12;
+    let gameStarted = false;
+    let gameLoop = null;
+
+    const controllerURL = "https://princeagarwalindia.github.io/Website/controller.html";
+    QRCode.toCanvas(qrCanvas, controllerURL, function (error) {
+      if (error) console.error(error);
+    });
+
+    const channel = new BroadcastChannel("dino-channel");
+    channel.onmessage = (e) => {
+      if (e.data === "jump") {
+        if (gameOver) {
+          resetGame();
+        } else {
+          if (!gameStarted) startGame();
+          jump();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        if (gameOver) {
+          resetGame();
+        } else {
+          if (!gameStarted) startGame();
+          jump();
+        }
+      }
+    });
+
+    function jump() {
+      const bottom = parseFloat(player.style.bottom) || 0;
+      if (!isJumping && !gameOver && bottom === 0) {
+        velocity = jumpStrength;
+        isJumping = true;
+      }
+    }
+
+    function resetGame() {
+      gameOver = false;
+      isJumping = false;
+      velocity = 0;
+      gameStarted = false;
+      player.style.bottom = "0px";
+      obstacle.style.right = "0px";
+      if (gameLoop) {
+        clearInterval(gameLoop);
+        gameLoop = null;
+      }
+      message.textContent = "Scan this QR on your phone to play!";
+    }
+
+    function startGame() {
+      if (gameStarted) return;
+      gameStarted = true;
+      let obstaclePos = 0;
+
+      gameLoop = setInterval(() => {
+        velocity += gravity;
+        let currentBottom = parseFloat(player.style.bottom) || 0;
+        currentBottom += velocity;
+
+        if (currentBottom <= 0) {
+          currentBottom = 0;
+          velocity = 0;
+          isJumping = false;
+        }
+
+        player.style.bottom = currentBottom + "px";
+
+        obstaclePos += 6;
+        obstacle.style.right = obstaclePos + "px";
+
+        const playerRect = player.getBoundingClientRect();
+        const obstacleRect = obstacle.getBoundingClientRect();
+
+        if (
+          playerRect.left < obstacleRect.right &&
+          playerRect.right > obstacleRect.left &&
+          playerRect.bottom > obstacleRect.top
+        ) {
+          clearInterval(gameLoop);
+          gameLoop = null;
+          gameOver = true;
+          message.textContent = "Game Over! Press Space or Tap to restart.";
+        }
+
+        if (obstaclePos > 600) {
+          obstaclePos = 0;
+          obstacle.style.right = "0px";
+        }
+      }, 20);
+    }
+
+    resetGame();
+  </script>
+</body>
+</html>
