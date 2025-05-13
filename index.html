@@ -70,6 +70,7 @@
     let velocity = 0;
     const gravity = 0.6;
     const jumpStrength = -12;
+    const groundLevel = 0; // Define the ground level
     let gameStarted = false;
     let gameLoop = null;
 
@@ -106,7 +107,7 @@
 
     function jump() {
       const currentBottom = parseFloat(player.style.bottom) || 0;
-      if (!isJumping && currentBottom <= 0) {
+      if (!isJumping && currentBottom === groundLevel) {
         velocity = jumpStrength; // Apply jump strength
         isJumping = true; // Mark as jumping
       }
@@ -129,7 +130,7 @@
       let obstaclePos = 0;
 
       gameLoop = setInterval(() => {
-        // Update velocity and apply gravity
+        // Apply gravity to velocity
         velocity += gravity;
 
         // Update the player's position
@@ -137,12 +138,13 @@
         currentBottom += velocity;
 
         // Prevent the player from going below the ground
-        if (currentBottom <= 0) {
-          currentBottom = 0;
-          velocity = 0;
+        if (currentBottom <= groundLevel) {
+          currentBottom = groundLevel;
+          velocity = 0; // Stop vertical movement
           isJumping = false; // Allow jumping again
         }
 
+        // Update the player's position
         player.style.bottom = currentBottom + "px";
 
         // Move the obstacle
