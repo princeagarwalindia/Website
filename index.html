@@ -106,9 +106,10 @@
 
     function jump() {
       let currentBottom = parseFloat(player.style.bottom) || 0;
+      // Prevent multiple jumps by ensuring isJumping is false
       if (!isJumping && currentBottom <= 0.1) {
-        velocity = jumpStrength;
-        isJumping = true;
+        velocity = jumpStrength; // Apply jump strength
+        isJumping = true; // Mark as jumping
       }
     }
 
@@ -129,24 +130,25 @@
       let obstaclePos = 0;
 
       gameLoop = setInterval(() => {
-        velocity += gravity;
+        velocity += gravity; // Apply gravity
         let currentBottom = parseFloat(player.style.bottom) || 0;
-        currentBottom += velocity;
+        currentBottom += velocity; // Update position
 
         if (currentBottom <= 0) {
-          currentBottom = 0;
-          velocity = 0;
-          isJumping = false;
+          currentBottom = 0; // Reset to ground level
+          velocity = 0; // Stop vertical movement
+          isJumping = false; // Allow jumping again
         }
 
         player.style.bottom = currentBottom + "px";
 
-        obstaclePos += 6;
+        obstaclePos += 6; // Move obstacle
         obstacle.style.right = obstaclePos + "px";
 
         const playerRect = player.getBoundingClientRect();
         const obstacleRect = obstacle.getBoundingClientRect();
 
+        // Check for collision
         if (
           playerRect.left < obstacleRect.right &&
           playerRect.right > obstacleRect.left &&
@@ -157,6 +159,7 @@
           message.textContent = "Game Over! Tap or press space to restart.";
         }
 
+        // Reset obstacle if it moves off screen
         if (obstaclePos > 600) {
           obstaclePos = 0;
           obstacle.style.right = "0px";
