@@ -2,197 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dino Game – Phone Controlled</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dino Game - Desktop</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
-      background: #f0f0f0;
+      margin: 0;
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      font-family: sans-serif;
-    }
-
-    #game {
+      background-color: #f4f4f4;
       position: relative;
-      width: 800px;
-      height: 200px;
+    }
+    #qr-code {
+      position: absolute;
+      top: 20px;
+      right: 20px;
       background: white;
-      border: 2px solid #444;
-      overflow: hidden;
-      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
     }
-
-    #qr-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    #qr {
-      margin-bottom: 10px;
-    }
-
-    #dino {
-      position: absolute;
-      bottom: 0;
-      left: 50px;
-      width: 40px;
-      height: 40px;
-      background: #222;
-      border-radius: 4px;
-    }
-
-    #obstacle {
-      position: absolute;
-      bottom: 0;
-      left: 800px;
-      width: 30px;
-      height: 40px;
-      background: crimson;
-      border-radius: 2px;
-    }
-
-    #overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 800px;
+    #game-box {
+      width: 200px;
       height: 200px;
-      background: rgba(255, 255, 255, 0.8);
+      background-color: #333;
       display: flex;
       justify-content: center;
       align-items: center;
+      color: white;
       font-size: 24px;
-      font-weight: bold;
-      color: #333;
-      z-index: 10;
     }
   </style>
 </head>
 <body>
-  <div id="qr-container">
-    <canvas id="qr"></canvas>
-    <p>Scan this QR code on your phone to control the game!</p>
-  </div>
-
-  <div id="game">
-    <div id="overlay">Press Space or Use Phone to Start</div>
-    <div id="dino"></div>
-    <div id="obstacle"></div>
-  </div>
+  <div id="qr-code"></div>
+  <div id="game-box">Game</div>
 
   <script>
-    const dino = document.getElementById("dino");
-    const obstacle = document.getElementById("obstacle");
-    const overlay = document.getElementById("overlay");
+    // Generate a unique session ID
+    const sessionId = `session-${Math.random().toString(36).substr(2, 9)}`;
+    console.log("Session ID:", sessionId);
 
-    let velocity = 0;
-    let gravity = -0.5;
-    let position = 0;
-    let obstacleLeft = 800;
-    let gameState = 'waiting'; // 'playing' or 'waiting'
-    let isJumping = false;
+    // Generate the QR code URL
+    const controllerUrl = `https://server-o4pv.onrender.com/controller.html?sessionId=${sessionId}`;
 
-    // BroadcastChannel for communication
-    const channel = new BroadcastChannel("dino-game");
+    // Render the QR code in the top-right corner
+    QRCode.toCanvas(document.getElementById("qr-code"), controllerUrl, function (error) {
+      if (error) console.error(error);
+      console.log("QR Code generated!");
+    });
 
-    // Listen for messages from the phone
-    channel.onmessage = (e) => {
-      if (e.data === "jump") {
-        if (gameState === 'waiting') {
-          startGame();
-        } else {
-          jump();
+    // WebSocket connection for the desktop
+    const socket = new WebSocket("wss://server-o4pv.onrender.com");
+
+    socket.onopen = () => {
+      console.log("Connected to WebSocket server as Desktop!");
+
+      // Register as desktop with the session ID
+      socket.send(JSON.stringify({ type: "register", role: "desktop", sessionId }));
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "action") {
+        console.log("Action received from controller:", data.variable);
+
+        // Update the game box based on the controller's action
+        if (data.variable === "jump") {
+          document.getElementById("game-box").textContent = "Jump!";
         }
       }
     };
 
-    function resetGame() {
-      position = 0;
-      velocity = 0;
-      isJumping = false;
-      dino.style.bottom = "0px";
-      obstacleLeft = 800;
-      obstacle.style.left = obstacleLeft + "px";
-      gameState = 'waiting';
-      overlay.style.display = "flex";
-    }
-
-    function startGame() {
-      gameState = 'playing';
-      overlay.style.display = "none";
-      requestAnimationFrame(moveObstacle);
-    }
-
-    function jump() {
-      if (isJumping || gameState !== 'playing') return;
-      isJumping = true;
-      velocity = 10;
-
-      const jumpInterval = setInterval(() => {
-        velocity += gravity;
-        position += velocity;
-
-        if (position <= 0) {
-          position = 0;
-          clearInterval(jumpInterval);
-          isJumping = false;
-        }
-
-        dino.style.bottom = position + "px";
-      }, 20);
-    }
-
-    function moveObstacle() {
-      if (gameState !== 'playing') return;
-
-      obstacleLeft -= 5;
-      obstacle.style.left = obstacleLeft + "px";
-
-      if (obstacleLeft < -30) {
-        obstacleLeft = 800;
-      }
-
-      const dinoRect = dino.getBoundingClientRect();
-      const obstacleRect = obstacle.getBoundingClientRect();
-
-      const isColliding =
-        dinoRect.right > obstacleRect.left + 5 &&
-        dinoRect.left < obstacleRect.right - 5 &&
-        dinoRect.bottom > obstacleRect.top;
-
-      if (isColliding) {
-        resetGame(); // Don't reload — reset and wait
-        return;
-      }
-
-      requestAnimationFrame(moveObstacle);
-    }
-
-    document.addEventListener("keydown", e => {
-      if (e.code === "Space" || e.code === "ArrowUp") {
-        if (gameState === 'waiting') {
-          startGame();
-        } else {
-          jump();
-        }
-      }
-    });
-
-    // Generate QR code for the phone controller
-    const qrCanvas = document.getElementById("qr");
-    const controllerURL = "https://princeagarwalindia.github.io/Website/controller.html"; // GitHub Pages URL for the controller
-    QRCode.toCanvas(qrCanvas, controllerURL, (error) => {
-      if (error) console.error(error);
-    });
-
-    // Initial state
-    resetGame();
+    socket.onclose = () => {
+      console.log("WebSocket connection closed.");
+    };
   </script>
 </body>
 </html>
