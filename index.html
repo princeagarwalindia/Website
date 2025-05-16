@@ -14,6 +14,7 @@
       height: 100vh;
       background-color: #f4f4f4;
       position: relative;
+      overflow: hidden;
     }
     #qr-code {
       position: absolute;
@@ -24,14 +25,17 @@
       border: 1px solid #ccc;
     }
     #game-box {
-      width: 200px;
-      height: 200px;
+      width: 100px;
+      height: 100px;
       background-color: #333;
       display: flex;
       justify-content: center;
       align-items: center;
       color: white;
       font-size: 24px;
+      transition: transform 0.3s ease-out;
+      position: absolute;
+      top: calc(50% - 50px); /* Center the box vertically */
     }
   </style>
 </head>
@@ -55,6 +59,7 @@
 
     // WebSocket connection for the desktop
     const socket = new WebSocket("wss://server-o4pv.onrender.com");
+    const gameBox = document.getElementById("game-box");
 
     socket.onopen = () => {
       console.log("Connected to WebSocket server as Desktop!");
@@ -71,7 +76,7 @@
 
         // Update the game box based on the controller's action
         if (data.variable === "jump") {
-          document.getElementById("game-box").textContent = "Jump!";
+          jump();
         }
       }
     };
@@ -79,6 +84,26 @@
     socket.onclose = () => {
       console.log("WebSocket connection closed.");
     };
+
+    // Function to handle jump
+    function jump() {
+      if (!gameBox.classList.contains("jumping")) {
+        gameBox.classList.add("jumping");
+        gameBox.style.transform = "translateY(-150px)";
+        setTimeout(() => {
+          gameBox.style.transform = "translateY(0)";
+          gameBox.classList.remove("jumping");
+        }, 300); // Reset after 300ms
+      }
+    }
+
+    // Add keyboard event listener for spacebar
+    document.addEventListener("keydown", (event) => {
+      if (event.code === "Space") {
+        event.preventDefault(); // Prevent scrolling
+        jump();
+      }
+    });
   </script>
 </body>
 </html>
